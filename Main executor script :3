@@ -1,0 +1,348 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local plr = Players.LocalPlayer
+local PlayerGui = plr:WaitForChild("PlayerGui")
+
+-- Cleanup old GUI
+local oldGui = PlayerGui:FindFirstChild("BobaExecutor")
+if oldGui then oldGui:Destroy() end
+
+local brownColor = Color3.fromRGB(89, 58, 40)
+local brownColorDarker = Color3.fromRGB(60, 40, 20)
+local brownInputBG = Color3.fromRGB(100, 65, 35)
+local whiteColor = Color3.new(1,1,1)
+
+local function roundify(frame, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = radius or UDim.new(0, 18)
+    c.Parent = frame
+end
+
+-- Create ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BobaExecutor"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+-- Intro Frame
+local IntroFrame = Instance.new("Frame")
+IntroFrame.Size = UDim2.new(0, 450, 0, 250)
+IntroFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+IntroFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+IntroFrame.BackgroundColor3 = brownColor
+IntroFrame.BackgroundTransparency = 0.3
+IntroFrame.Parent = ScreenGui
+roundify(IntroFrame, UDim.new(0, 30))
+
+local IntroLabel = Instance.new("TextLabel")
+IntroLabel.Text = "Hello!, "..plr.Name..".\nWelcome to BobaExecutor!\nMade by ST1CKSNH0RR0R."
+IntroLabel.TextColor3 = whiteColor
+IntroLabel.TextSize = 26
+IntroLabel.Font = Enum.Font.FredokaOne
+IntroLabel.BackgroundTransparency = 1
+IntroLabel.Size = UDim2.new(1, -40, 1, -40)
+IntroLabel.Position = UDim2.new(0, 20, 0, 20)
+IntroLabel.TextWrapped = true
+IntroLabel.Parent = IntroFrame
+
+-- Tween Intro
+IntroFrame.Size = UDim2.new(0, 0, 0, 0)
+IntroFrame.BackgroundTransparency = 1
+IntroLabel.TextTransparency = 1
+
+local tweenIntroSize = TweenService:Create(IntroFrame, TweenInfo.new(1.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, 450, 0, 250),
+    BackgroundTransparency = 0.3
+})
+local tweenIntroText = TweenService:Create(IntroLabel, TweenInfo.new(1.2), {
+    TextTransparency = 0
+})
+
+tweenIntroSize:Play()
+tweenIntroText:Play()
+tweenIntroSize.Completed:Wait()
+wait(1.8)
+local tweenFadeOutFrame = TweenService:Create(IntroFrame, TweenInfo.new(1), {BackgroundTransparency = 1})
+local tweenFadeOutText = TweenService:Create(IntroLabel, TweenInfo.new(1), {TextTransparency = 1})
+tweenFadeOutFrame:Play()
+tweenFadeOutText:Play()
+tweenFadeOutFrame.Completed:Wait()
+IntroFrame:Destroy()
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 700, 0, 480)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = brownColor
+MainFrame.Parent = ScreenGui
+roundify(MainFrame, UDim.new(0, 25))
+MainFrame.Active = true
+MainFrame.Draggable = false  -- We'll handle dragging manually for mobile only
+
+-- Mobile draggable support for MainFrame
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                                  startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+MainFrame.InputBegan:Connect(function(input)
+    if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+        if input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end
+end)
+
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        update(input)
+    end
+end)
+
+-- Mac-style buttons container
+local BtnContainer = Instance.new("Frame")
+BtnContainer.Size = UDim2.new(0, 90, 0, 28)
+BtnContainer.Position = UDim2.new(0, 12, 0, 10)
+BtnContainer.BackgroundTransparency = 1
+BtnContainer.Parent = MainFrame
+
+local macColors = {
+    Color3.fromRGB(255, 95, 86),   -- close red
+    Color3.fromRGB(255, 189, 46),  -- minimize yellow
+    Color3.fromRGB(39, 201, 63)    -- maximize green
+}
+
+local Btns = {}
+
+for i, col in ipairs(macColors) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 20, 0, 20)
+    btn.Position = UDim2.new(0, (i-1)*30, 0, 0)
+    btn.BackgroundColor3 = col
+    btn.BorderSizePixel = 0
+    btn.Text = ""
+    btn.AutoButtonColor = false
+    btn.Name = i == 1 and "CloseBtn" or i == 2 and "MinBtn" or "MaxBtn"
+    btn.Parent = BtnContainer
+    roundify(btn, UDim.new(0, 10))
+    Btns[btn.Name] = btn
+end
+
+-- Minimized icon frame (hidden by default)
+local MinimizedIcon = Instance.new("ImageButton")
+MinimizedIcon.Size = UDim2.new(0, 70, 0, 70)
+MinimizedIcon.Position = UDim2.new(0, 20, 0.5, -35)  -- left-middle screen
+MinimizedIcon.BackgroundColor3 = brownColor
+MinimizedIcon.BackgroundTransparency = 0.3
+MinimizedIcon.Parent = ScreenGui
+roundify(MinimizedIcon, UDim.new(0, 20))
+MinimizedIcon.Image = "rbxassetid://109474968637074"
+MinimizedIcon.Visible = false
+
+-- Drag support for MinimizedIcon (mouse + touch)
+local draggingMin, dragInputMin, dragStartMin, startPosMin
+local function updateMin(input)
+    local delta = input.Position - dragStartMin
+    MinimizedIcon.Position = UDim2.new(startPosMin.X.Scale, startPosMin.X.Offset + delta.X,
+                                      startPosMin.Y.Scale, startPosMin.Y.Offset + delta.Y)
+end
+
+MinimizedIcon.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingMin = true
+        dragStartMin = input.Position
+        startPosMin = MinimizedIcon.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingMin = false
+            end
+        end)
+    end
+end)
+
+MinimizedIcon.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputMin = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingMin and input == dragInputMin then
+        updateMin(input)
+    end
+end)
+
+MinimizedIcon.MouseButton1Click:Connect(function()
+    MinimizedIcon.Visible = false
+    MainFrame.Visible = true
+end)
+
+-- Button functionality
+Btns.CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    MinimizedIcon.Visible = true
+end)
+
+local minimized = false
+Btns.MinBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    MainFrame.Visible = not minimized
+end)
+
+local maxSize = UDim2.new(1, 0, 1, 0)
+local normalSize = MainFrame.Size
+Btns.MaxBtn.MouseButton1Click:Connect(function()
+    if MainFrame.Size == normalSize then
+        MainFrame:TweenSize(maxSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.4, true)
+    else
+        MainFrame:TweenSize(normalSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.4, true)
+    end
+end)
+
+-- Title Label
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(0, 400, 0, 30)
+TitleLabel.Position = UDim2.new(0, 120, 0, 10)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3 = whiteColor
+TitleLabel.Font = Enum.Font.FredokaOne
+TitleLabel.TextSize = 22
+TitleLabel.Text = "BobaExecutor"
+TitleLabel.Parent = MainFrame
+
+-- Input box background frame (for extra brown layer)
+local InputBG = Instance.new("Frame")
+InputBG.Size = UDim2.new(0, 660, 0, 120)
+InputBG.Position = UDim2.new(0, 20, 0, 60)
+InputBG.BackgroundColor3 = brownInputBG
+InputBG.Parent = MainFrame
+roundify(InputBG, UDim.new(0, 18))
+
+-- Script Input Box
+local ScriptInput = Instance.new("TextBox")
+ScriptInput.Size = UDim2.new(1, -20, 1, -20)
+ScriptInput.Position = UDim2.new(0, 10, 0, 10)
+ScriptInput.BackgroundTransparency = 1
+ScriptInput.TextColor3 = whiteColor
+ScriptInput.Font = Enum.Font.FredokaOne
+ScriptInput.TextSize = 18
+ScriptInput.TextWrapped = true
+ScriptInput.ClearTextOnFocus = false
+ScriptInput.MultiLine = true
+ScriptInput.PlaceholderText = "Enter script here"
+ScriptInput.Parent = InputBG
+
+-- Auto placeholder reset if cleared
+ScriptInput.Focused:Connect(function()
+    if ScriptInput.Text == "Enter script here" then
+        ScriptInput.Text = ""
+    end
+end)
+ScriptInput.FocusLost:Connect(function()
+    if ScriptInput.Text == "" then
+        ScriptInput.Text = "Enter script here"
+    end
+end)
+
+-- Execute Button (overlaps input and logs)
+local ExecuteBtn = Instance.new("TextButton")
+ExecuteBtn.Size = UDim2.new(0, 180, 0, 45)
+ExecuteBtn.Position = UDim2.new(0, 20, 0, 190)
+ExecuteBtn.BackgroundColor3 = brownColorDarker
+ExecuteBtn.TextColor3 = whiteColor
+ExecuteBtn.Font = Enum.Font.FredokaOne
+ExecuteBtn.TextSize = 20
+ExecuteBtn.Text = "Execute script!"
+ExecuteBtn.AutoButtonColor = false
+roundify(ExecuteBtn, UDim.new(0, 20))
+ExecuteBtn.Parent = MainFrame
+
+-- Logs Background
+local LogBG = Instance.new("Frame")
+LogBG.Size = UDim2.new(0, 660, 0, 150)
+LogBG.Position = UDim2.new(0, 20, 0, 250)
+LogBG.BackgroundColor3 = brownInputBG
+LogBG.Parent = MainFrame
+roundify(LogBG, UDim.new(0, 18))
+
+-- Log Label (multi-line)
+local LogLabel = Instance.new("TextLabel")
+LogLabel.Size = UDim2.new(1, -20, 1, -20)
+LogLabel.Position = UDim2.new(0, 10, 0, 10)
+LogLabel.BackgroundTransparency = 1
+LogLabel.TextColor3 = whiteColor
+LogLabel.Font = Enum.Font.FredokaOne
+LogLabel.TextSize = 16
+LogLabel.TextWrapped = true
+LogLabel.TextYAlignment = Enum.TextYAlignment.Top
+LogLabel.Text = "Logs:\n"
+LogLabel.Parent = LogBG
+
+-- Safe function to execute user script with error catching
+local function executeScript(code)
+    local func, err = loadstring(code)
+    if not func then
+        LogLabel.Text = LogLabel.Text .. "\nError: " .. err
+        return
+    end
+    local success, execErr = pcall(func)
+    if not success then
+        LogLabel.Text = LogLabel.Text .. "\nRuntime error: " .. execErr
+    else
+        LogLabel.Text = LogLabel.Text .. "\nScript executed successfully!"
+    end
+end
+
+-- Execute button click
+ExecuteBtn.MouseButton1Click:Connect(function()
+    local code = ScriptInput.Text
+    if code == "" or code == "Enter script here" then
+        LogLabel.Text = LogLabel.Text .. "\nNo script entered!"
+        return
+    end
+    executeScript(code)
+end)
+
+-- Internet button (bottom right)
+local InternetBtn = Instance.new("ImageButton")
+InternetBtn.Size = UDim2.new(0, 40, 0, 40)
+InternetBtn.Position = UDim2.new(1, -60, 1, -60)
+InternetBtn.BackgroundTransparency = 1
+InternetBtn.Image = "rbxassetid://6031094673"  -- internet/globe icon
+InternetBtn.Parent = MainFrame
+
+InternetBtn.MouseButton1Click:Connect(function()
+    local url = "https://scriptblox.com"
+    -- Try open url or copy to clipboard
+    if syn and syn.request then
+        pcall(function()
+            syn.request({Url = url, Method = "GET"})
+        end)
+    end
+    pcall(function()
+        setclipboard(url)
+        LogLabel.Text = LogLabel.Text .. "\nScriptblox URL copied to clipboard!"
+    end)
+end)
